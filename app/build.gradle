@@ -1,0 +1,20 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.yaway.traphouse'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.yaway.traphouse'
+        minSdk 24
+        targetSdk 34
+        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+        versionName '1.0.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+    }
+    signingConfigs {
+        // one fixed key kept in the repo, so every new build installs over the last one without uninstalling
+        release { storeFile file('traphouse.keystore'); storePassword 'traphouse'; keyAlias 'traphouse'; keyPassword 'traphouse' }
+    }
+    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    androidResources { noCompress 'json', 'mp3', 'jpg', 'png', 'glb', 'bin' }
+}
+dependencies { implementation 'androidx.webkit:webkit:1.11.0' }

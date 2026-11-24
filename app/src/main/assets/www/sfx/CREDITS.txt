@@ -1,0 +1,23 @@
+TRAP HOUSE - sound credits
+
+Your recordings: door opening sound, Tim Wright dialog.
+
+From Minetest Game (github.com/luanti-org/minetest_game), originally from freesound.org:
+- Door close: bennstir - CC BY 3.0
+- Steel cabinet open/close: HazMattt (freesound 187283) - CC BY 3.0
+- Glass breaking: cmusounddesign (71947), Tomlija (97669), lsprice (88808) - CC BY 3.0
+- Dropping things / debris / wooden footsteps: Mito551 - CC BY-SA 3.0
+- Metal drops: Iwan Gabovitch "qubodup" - CC0; Ogrebane - CC0
+- Metal click (locks): yadronoff (freesound 320397) - CC BY 3.0
+- Hard-floor footsteps: Erdie (freesound 41579) - CC BY 3.0
+- Prying boards: Sheyvan (freesound 476113) - CC0
+- Drawers / cabinets: mix by sofar of Sevin7 (CC0), Percy Duke, kingsamas, bulbastre (CC BY 3.0), Yoyodaman234 (CC0)
+
+From VoxeLibre (github.com/VoxeLibre/VoxeLibre):
+- Cloth rustle (hiding): Alecia Shepherd - CC BY-SA 4.0
+
+From Home Decor modpack (github.com/mt-mods/homedecor_modpack):
+- Toilet flush - CC BY-SA 4.0
+
+Sounds were trimmed, converted to mono MP3 and level-matched for the game.
+- Hurt sound: sonictechtonic (freesound 241872) - CC BY 3.0, via Minetest Game
