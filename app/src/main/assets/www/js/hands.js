@@ -323,7 +323,8 @@
       defs.forEach(([x, lens, r, dz]) => fingers.push(this.finger(hand, x, -0.086 + dz, lens, r)));
       // thumb: angled out from the side of the palm, with the meaty web to the index finger
       const tb = new THREE.Group(); tb.position.set(-0.03, -0.006, -0.02); tb.rotation.set(-0.25, 0.62, -0.75); hand.add(tb);
-      const thumb = this.thumbOne(tb, 0.0112, [0.042, 0.029]); // one continuous skin from the mound to the tip (it used to be a lump + two tubes)
+      add(tb, new THREE.SphereGeometry(1, 24, 16), this.skinM, 0.004, 0.002, -0.012).scale.set(0.0145, 0.0122, 0.027);
+      const thumb = this.finger(tb, 0, -0.02, [0.042, 0.029], 0.0112, true); // starts inside the thumb mound, so there's no collar where it meets the hand
       const grip = new THREE.Group(); grip.position.set(0.0, -0.03, -0.088); hand.add(grip); // where a held item sits
       if (side > 0) {
         this.triRing(this.ringOn(fingers[0], 0.34)); this.signet(this.ringOn(fingers[1], 0.32)); this.horseshoe(this.ringOn(fingers[2], 0.34));
@@ -333,49 +334,7 @@
         this.tennisBracelet(fore, -0.418);
       }
       root.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
-      root.updateMatrixWorld(true); thumb.mesh.bind(new THREE.Skeleton(thumb.bones)); // bind the thumb's skin to its bones in this rest pose
       return { root, arm, fore, hand, fingers, thumb, grip, side, curl: 0.35, spread: 0 };
-    },
-
-    // The thumb as ONE smooth surface: the fleshy mound at its root, the bone up to the knuckle and the broad flat tip are a single
-    // skinned mesh with one material, so there are no edges where pieces meet. Three bones: the root stays with the hand, the other two
-    // are the thumb's joints (curled by poseArm exactly as before); the skin blends between them around each joint.
-    thumbOne(tb, rr, lens) {
-      const bR = new THREE.Bone(), b0 = new THREE.Bone(), b1 = new THREE.Bone(); tb.add(bR); b0.position.set(0, 0, -0.02); bR.add(b0); b1.position.z = -lens[0]; b0.add(b1);
-      const L0 = lens[0], L1 = lens[1], re = rr * 0.81, tipL = re * 1.35, sA = -0.036, sB = L0 + L1 + tipL;
-      const NS = 64, NU = 28, pos = [], uv = [], si = [], sw = [], idx = [];
-      const sm = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
-      const smax = (a, b) => Math.pow(Math.pow(a, 6) + Math.pow(b, 6), 1 / 6); // soft max: the mound melts into the thumb, no crease
-      for (let j = 0; j <= NS; j++) {
-        const s = sA + (sB - sA) * (j / NS);
-        // the mound at the root (the old separate lump, now part of the same surface)
-        const mm = Math.sqrt(Math.max(0, 1 - ((s + 0.008) / 0.028) ** 2)), mx = 0.0145 * mm, my = 0.0122 * mm;
-        // the thumb: flares out of the mound, tapers to the knuckle, a soft knuckle rise, then the broad flat tip that rounds off
-        let tr = s < L0 ? rr * (1.25 - 0.25 * sm(0, L0 * 0.8, s)) : rr * (1 - 0.1 * sm(L0, L0 + L1, s));
-        tr *= 1 + 0.035 * Math.exp(-(((s - L0) / 0.008) ** 2));
-        const spat = 1 + 0.13 * Math.sin(Math.PI * Math.min(1, Math.max(0, (s - L0) / (L1 + tipL * 0.6))));
-        const cap = s > L0 + L1 ? Math.sqrt(Math.max(0, 1 - ((s - L0 - L1) / tipL) ** 2)) : 1;
-        const fade = sm(sA + 0.004, 0.004, s); // the thumb itself fades in out of the mound
-        const rx = smax(mx, tr * spat * fade) * cap, ry = smax(my, tr * fade) * cap, wm = mx / Math.max(1e-6, smax(mx, tr * fade));
-        const cx = 0.004 * wm, cy = 0.002 * wm;
-        const wA = 1 - sm(-0.014, 0.006, s), w1 = sm(L0 - 0.007, L0 + 0.007, s), w0 = Math.max(0, 1 - wA - w1);
-        for (let i = 0; i <= NU; i++) {
-          const a = (i / NU) * Math.PI * 2, X = Math.sin(a), Y = Math.cos(a), top = Y > 0 ? 0.84 * (s > L0 ? 0.92 : 1) : 0.94 + 0.08 * Math.sin(Math.PI * Math.min(1, Math.max(0, s / (L0 + L1))));
-          pos.push(cx + X * rx, cy + Y * ry * top, -s); uv.push(i / NU, Math.min(1, Math.max(0, s / (L0 + L1 + tipL))));
-          si.push(0, 1, 2, 0); sw.push(wA, w0, w1, 0);
-        }
-      }
-      for (let j = 0; j < NS; j++) for (let i = 0; i < NU; i++) { const a = j * (NU + 1) + i, b = a + NU + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
-      const g = new THREE.BufferGeometry(); g.setIndex(idx);
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-      g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
-      g.computeVertexNormals();
-      { const N = g.attributes.normal; for (let j = 0; j <= NS; j++) { const a = j * (NU + 1), b = a + NU; const nx = N.getX(a) + N.getX(b), ny = N.getY(a) + N.getY(b), nz = N.getZ(a) + N.getZ(b), l = Math.hypot(nx, ny, nz) || 1; N.setXYZ(a, nx / l, ny / l, nz / l); N.setXYZ(b, nx / l, ny / l, nz / l); } }
-      if (!this.thumbM) { this.thumbM = this.fingerM[2].clone(); this.thumbM.skinning = true; }
-      const mesh = new THREE.SkinnedMesh(g, this.thumbM); tb.add(mesh); mesh.frustumCulled = false;
-      // the nail, on the tip bone as before
-      const n = nailGeo(re * 1.08, L1), nail = new THREE.Mesh(n.g, this.nailM); nail.position.set(0, rr * 0.9 * 0.84 * 0.92 * 0.99 + 0.00035, -L1 + n.l / 2 - re * 0.35); b1.add(nail); // on the skin of the flat back of the tip
-      return { joints: [b0, b1], bones: [bR, b0, b1], mesh, isThumb: true, r: rr, lens };
     },
 
     finger(parent, x, z, lens, r, isThumb) {
