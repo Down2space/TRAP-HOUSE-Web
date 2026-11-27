@@ -32,6 +32,11 @@
       if (this.base) { const r = TH.House.roomAt(P.pos.x, P.pos.z, lv), out = r && /deck|roof|yard|shed/.test(r.id) ? 1 : 0;
         this.out = (this.out || 0) + (out - (this.out || 0)) * Math.min(1, dt * 1.5);
         this.hemi.intensity = this.base.hemi * (1 + 1.6 * this.out); TH.scene.fog.density = this.base.fog * (1 - 0.55 * this.out); }
+      // on (or near either end of) a staircase you can see both floors, so lamps on both count as "this floor". Without this the upstairs
+      // lamps stayed off until you were halfway up, and the top of the stairs looked like a black wall you walked through.
+      let lvA = lv, lvB = lv, onStair = false;
+      (TH.Col.stairs || []).forEach((st) => { const z0 = Math.min(st.zb, st.zt) - 2.2, z1 = Math.max(st.zb, st.zt) + 2.2;
+        if (cp.x > st.x0 - 1.2 && cp.x < st.x1 + 1.2 && cp.z > z0 && cp.z < z1 && cp.y > st.yb - 0.5 && cp.y < st.yt + 2.4) { onStair = true; lvA = Math.min(lvA, st.lb); lvB = Math.max(lvB, st.lt); } });
       const F = TH.House.fixtures;
       F.forEach((f) => {
         let k = f.power;
@@ -42,7 +47,7 @@
         }
         f.cur = k * (f.moon ? 1 : 0.55 + 0.45 * dark);
         if (f.mat) { const q = Math.min(1, f.cur * (f.candle ? 1.6 : 1) + 0.12); if (f.candle) f.mat.color.setRGB(q, 0.62 * q, 0.28 * q); else f.mat.color.setRGB(q, 0.86 * q, 0.55 * q); }
-        f.score = f.cur < 0.03 ? 999 : Math.hypot(f.x - cp.x, f.z - cp.z) + (f.level === lv ? 0 : 9) + (f.y - cp.y > 3.2 || cp.y - f.y > 3.2 ? 6 : 0);
+        f.score = f.cur < 0.03 ? 999 : Math.hypot(f.x - cp.x, f.z - cp.z) + (f.level >= lvA && f.level <= lvB ? 0 : 9) + (!onStair && (f.y - cp.y > 3.2 || cp.y - f.y > 3.2) ? 6 : onStair ? Math.abs(f.y - cp.y) * 0.5 : 0);
       });
       const order = F.slice().sort((a, b) => a.score - b.score);
       this.pool.forEach((l, i) => {

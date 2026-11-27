@@ -27,6 +27,8 @@
       const done = () => { if (this.mesh.geometry.attributes.position.count !== this.rig.n) { this.status = 'rig does not match the model'; return; } this.ready = true; this.status = 'loaded'; this.attach(); };
       const go = () => {
         tries++;
+        const PK = window.TH_MODELS || {};
+        if (PK.tim && PK.timRig) { this.rig = PK.timRig; new THREE.GLTFLoader().parse(PK.tim, '', (gl) => { gl.scene.traverse((o) => { if (o.isMesh && !this.mesh) this.mesh = o; }); if (!this.mesh) { this.status = 'empty file'; return; } done(); }, fail); return; } // packed into the page
         const rig = this.rig ? Promise.resolve(this.rig) : fetch('models/tim_rig.json').then((r) => { if (!r.ok) throw new Error('rig ' + r.status); return r.json(); });
         rig.then((rj) => {
           this.rig = rj; if (this.mesh) return done();

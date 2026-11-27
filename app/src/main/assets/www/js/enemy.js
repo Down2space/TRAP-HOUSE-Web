@@ -258,8 +258,13 @@
     add(head, new THREE.BoxGeometry(0.1, 0.022, 0.02), P(0x1a0c08), 0, -0.035, 0.112);
     for (let i = 0; i < 7; i++) add(head, new THREE.BoxGeometry(0.011, 0.016, 0.01), P(0xd8cc90, { shininess: 50 }), -0.039 + i * 0.013, -0.03, 0.118);
     torso.rotation.x = 0.22;
-    root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    return { root, body, torso, legL, legR, armL, armR, head, eyeMat, glowMat, plank, nail };
+    // The old block-built Tim is gone: only his invisible skeleton stays (it drives the real Tim's pose). Every block, sphere and sprite
+    // is swapped for an empty joint at the same spot, so nothing of him can ever be drawn.
+    const strip = (o) => { o.children.slice().forEach(strip); if (!o.isMesh && !o.isSprite) return o;
+      const j = new THREE.Object3D(); j.position.copy(o.position); j.quaternion.copy(o.quaternion); j.scale.copy(o.scale); o.children.slice().forEach((c) => j.add(c));
+      const p = o.parent; if (p) { p.add(j); p.remove(o); } if (o.geometry) o.geometry.dispose(); return j; };
+    strip(root); const plankJ = armR.userData.elbow.children.find((c) => Math.abs(c.position.y + 0.72) < 1e-3) || new THREE.Object3D();
+    return { root, body, torso, legL, legR, armL, armR, head, eyeMat, glowMat, plank: plankJ, nail: new THREE.Object3D() };
   }
 
 

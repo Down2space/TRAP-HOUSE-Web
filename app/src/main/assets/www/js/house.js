@@ -652,13 +652,17 @@
       TH.Col.addBox(1, MAIN.x1 - 0.1, MAIN.zt, MAIN.x1 + 0.1, MAIN.zb + 0.1, false); TH.Col.addBox(1, MAIN.x0, MAIN.zb - 0.1, MAIN.x1, MAIN.zb + 0.1, false); }
     { const c = addMesh(new THREE.PlaneGeometry(2.2, 5), ceil, -1.9, 2 * H - 0.02, 2); c.rotation.x = Math.PI / 2; }
     // a closed stringer down the open side of a flight, so you see a painted board and not the stacked step blocks
-    function skirt(x, zb, zt, yb, yt) {
+    function skirt(x, zb, zt, yb, yt, mat) {
       const g = new THREE.BufferGeometry(), k = 0.28, p = [x, yb, zb, x, yb + k, zb, x, yt + k, zt, x, yb, zb, x, yt + k, zt, x, yb, zt], L = Math.abs(zt - zb);
       g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 0, k, L, yt - yb + k, 0, 0, L, yt - yb + k, L, 0], 2)); g.computeVertexNormals();
       if (!Hs._skirtM) { Hs._skirtM = woodMat(0x3b2414); Hs._skirtM.side = THREE.DoubleSide; }
-      addMesh(g, Hs._skirtM, 0, 0, 0);
+      addMesh(g, mat || Hs._skirtM, 0, 0, 0);
     }
-    skirt(-0.775, MAIN.zb, MAIN.zt, 0, H);
+    // the open side of the grand staircase is papered like the rest of the hall (it was a flat, unlit dark-wood triangle that read as a black hole),
+    // with a dark wood stringer along the top edge under the treads
+    { const m = paperFor(0, 'z', -0.775, 1, 1, Hs.mats.W.red).clone(); m.side = THREE.DoubleSide; skirt(-0.775, MAIN.zb, MAIN.zt, 0, H - 0.2, m);
+      const L = Math.abs(MAIN.zt - MAIN.zb), ang = Math.atan2(H, L), len = Math.hypot(H, L), sg = new THREE.BoxGeometry(0.05, 0.3, len + 0.3);
+      const st = addMesh(sg, woodMat(0x4a2e1a), -0.79, H / 2 + 0.05, (MAIN.zb + MAIN.zt) / 2); st.rotation.x = ang * Math.sign(MAIN.zb - MAIN.zt); }
     skirt(CELL.x0 - 0.005, CELL.zb, CELL.zt, -H, 0); // the basement side of the mudroom stairs
 
     /* ---------- the servants' stairs (kitchen passage up to the back landing) ---------- */

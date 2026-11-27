@@ -278,12 +278,13 @@
   const loadAvatar = () => {
     if (!THREE.GLTFLoader) { avStatus('loader missing'); return; }
     TH.Avatar.tries++; avStatus(TH.Avatar.tries > 1 ? 'loading (try ' + TH.Avatar.tries + ')' : 'loading');
-    new THREE.GLTFLoader().load('models/dylan.json', (gl) => {
+    const PK = window.TH_MODELS || {}, L = new THREE.GLTFLoader(), got = (gl) => {
       gl.scene.traverse((o) => { if (o.isMesh && !TH.Avatar.mesh) TH.Avatar.mesh = o; });
       if (!TH.Avatar.mesh) { avStatus('file had no body in it'); return; }
       TH.Avatar.ready = true; avStatus('loaded');
-      const R = TH.Replay; if (R.man && !R.man.rig && !R.man.g.visible) { TH.scene.remove(R.man.g); R.man = null; } // swap the stand-in out next time it's needed
-    }, undefined, (e) => { avStatus('failed (' + ((e && (e.message || e.type)) || 'network') + ')'); if (TH.Avatar.tries < 4) setTimeout(loadAvatar, 3000 * TH.Avatar.tries); });
+      const R = TH.Replay; if (R.man && !R.man.rig) { TH.scene.remove(R.man.g); R.man = null; }
+    }, bad = (e) => { avStatus('failed (' + ((e && (e.message || e.type)) || 'network') + ')'); if (TH.Avatar.tries < 4) setTimeout(loadAvatar, 3000 * TH.Avatar.tries); };
+    if (PK.dylan) L.parse(PK.dylan, '', got, bad); else L.load('models/dylan.json', got, undefined, bad); // packed into the page
   };
   loadAvatar();
 
@@ -378,7 +379,7 @@
     // by the left ear, blue-grey eyes, light stubble, nose ring and black ear studs, the iced-out chain with the spider
     // pendant, black pants and black creepers with the checkered strap. From the elbows down it matches the first-person
     // hands (same skin, the charcoal hoodie with the sleeves shoved up, the same bracelets and rings). Faces -z.
-    build() { return TH.Avatar && TH.Avatar.ready ? this.buildScan() : this.buildBlocky(); },
+    build() { return this.buildScan(); }, // only the real Dylan (the old block-built stand-in is gone)
     // The 3D scan of the player (models/dylan.json), rigged here on load. The scan is one solid mesh standing in a T-pose, so the
     // skeleton is measured off the mesh itself (where the knees, ankles, elbows and wrists actually are) and every vertex is
     // weighted to the bones nearest it inside its own body part, so joints bend smoothly instead of folding.
@@ -914,100 +915,6 @@
           if (m) m.visible = true;
         }
       }
-    },
-    buildBlocky() {
-      const g = new THREE.Group(); g.userData.dynamic = true; g.visible = false; TH.scene.add(g);
-      const m = (c, r, mt, em) => { const x = new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.8, metalness: mt || 0 }); if (em) x.emissive.setHex(em); x.userData.noPBR = true; return x; };
-      const hood = m(0x2b2f36, 0.95), hoodDk = m(0x23262c, 0.95), string = m(0xcfcac0, 0.9), pants = m(0x1e1e22, 0.9), skin = m(0xd8a088, 0.6),
-        stubble = m(0xb08a72, 1), lips = m(0xc4867a, 0.5), brow = m(0x8a6a48, 0.9), white = m(0xeee8e2, 0.3), iris = m(0x6d8298, 0.2), stud = m(0x101012, 0.3, 0.4),
-        hairBase = m(0x4f3420, 0.9), tie = m(0x111111, 0.7), shoe = m(0x141416, 0.6), crepe = m(0x0d0d0f, 0.95),
-        silver = m(0xdedee2, 0.3, 0.9), ice = m(0xf4f4f8, 0.15, 0.7, 0x2a2a30), tiger = m(0x8a5a1c, 0.35, 0.2), sapph = m(0x2848c0, 0.15, 0.5);
-      // the woven checker on the creepers
-      const cc = document.createElement('canvas'); cc.width = 32; cc.height = 16; const cx = cc.getContext('2d'); for (let y = 0; y < 4; y++) for (let x = 0; x < 8; x++) { cx.fillStyle = (x + y) % 2 ? '#e8e4dc' : '#151515'; cx.fillRect(x * 4, y * 4, 4, 4); }
-      const checkT = new THREE.CanvasTexture(cc); checkT.magFilter = THREE.NearestFilter; const check = new THREE.MeshStandardMaterial({ map: checkT, roughness: 0.8 }); check.userData.noPBR = true;
-      const put = (geo, mat, p, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x || 0, y || 0, z || 0); p.add(o); return o; };
-      const cyl = (rt, rb, h, n) => new THREE.CylinderGeometry(rt, rb, h, n || 12), sph = (r, a, b) => new THREE.SphereGeometry(r, a || 12, b || 9);
-      let seed = 7; const rr = () => (seed = (seed * 16807) % 2147483647) / 2147483647; // same curls every time
-      const hip = new THREE.Group(); hip.position.y = 0.92; g.add(hip);
-      put(new THREE.BoxGeometry(0.34, 0.16, 0.21), pants, hip, 0, 0.01, 0);
-      // legs: loose black pants down to black creepers (thick crepe sole, checkered strap)
-      const leg = (x) => {
-        const j = new THREE.Group(); j.position.set(x, 0, 0); hip.add(j);
-        put(cyl(0.09, 0.078, 0.47), pants, j, 0, -0.235, 0); put(sph(0.077), pants, j, 0, -0.47, 0); put(cyl(0.077, 0.071, 0.36), pants, j, 0, -0.65, 0);
-        put(new THREE.BoxGeometry(0.112, 0.068, 0.28), shoe, j, 0, -0.846, -0.05); put(new THREE.BoxGeometry(0.122, 0.042, 0.295), crepe, j, 0, -0.899, -0.05);
-        put(new THREE.BoxGeometry(0.116, 0.026, 0.11), check, j, 0, -0.81, -0.12);
-        return j;
-      };
-      const legL = leg(-0.1), legR = leg(0.1);
-      // the hoodie (the same charcoal as the sleeves you see on your own arms)
-      const torso = new THREE.Group(); hip.add(torso);
-      put(cyl(0.19, 0.172, 0.54, 16), hood, torso, 0, 0.32, 0).scale.z = 0.62;
-      put(cyl(0.178, 0.178, 0.06, 16), hoodDk, torso, 0, 0.06, 0).scale.z = 0.64;
-      put(new THREE.CylinderGeometry(0.085, 0.085, 0.42, 12).rotateZ(Math.PI / 2), hood, torso, 0, 0.56, 0).scale.set(1, 1, 0.8);
-      put(new THREE.BoxGeometry(0.25, 0.13, 0.012), hoodDk, torso, 0, 0.18, -0.113);
-      const hd = put(new THREE.TorusGeometry(0.095, 0.045, 8, 16), hood, torso, 0, 0.62, 0.035); hd.rotation.x = Math.PI / 2 - 0.35; hd.scale.set(1, 0.85, 1);
-      put(sph(0.11, 12, 8), hood, torso, 0, 0.55, 0.12).scale.set(1.05, 0.9, 0.55);
-      [-0.045, 0.045].forEach((x) => put(cyl(0.006, 0.006, 0.16, 5), string, torso, x, 0.5, -0.12));
-      // the iced-out chain and the spider pendant
-      const chain = put(new THREE.TorusGeometry(0.075, 0.0065, 6, 28), ice, torso, 0, 0.6, -0.04); chain.rotation.x = Math.PI / 2 + 0.75;
-      const spider = new THREE.Group(); spider.position.set(0, 0.535, -0.125); torso.add(spider);
-      put(sph(0.016, 8, 6), ice, spider, 0, -0.006, 0).scale.set(1, 1.25, 0.6); put(sph(0.009, 8, 6), ice, spider, 0, 0.016, -0.002);
-      for (let k = 0; k < 8; k++) { const s = k < 4 ? -1 : 1, i = k % 4, l = put(cyl(0.0022, 0.0018, 0.034, 4), ice, spider, s * 0.02, 0.012 - i * 0.009, -0.002); l.rotation.z = s * (0.9 + i * 0.35) * (i < 2 ? 1 : -1) + (i < 2 ? 0 : s * 2.2); }
-      // neck and head
-      put(cyl(0.048, 0.054, 0.1), skin, torso, 0, 0.67, 0.005);
-      const head = new THREE.Group(); head.position.y = 0.79; torso.add(head);
-      put(sph(0.104, 18, 14), skin, head).scale.set(0.88, 1.08, 0.98);
-      put(sph(0.07, 14, 10), skin, head, 0, -0.06, -0.025).scale.set(1, 0.8, 1.05);
-      put(new THREE.SphereGeometry(0.073, 14, 8, 0, Math.PI * 2, Math.PI / 2 - 0.15, Math.PI / 2 + 0.15), stubble, head, 0, -0.06, -0.027).scale.set(1, 0.8, 1.05); // light stubble along the jaw and chin
-      [-1, 1].forEach((s) => {
-        put(sph(0.024, 8, 6), skin, head, s * 0.09, -0.005, 0.005).scale.set(0.55, 1, 0.8); // ears
-        put(sph(0.0055, 6, 5), stud, head, s * 0.093, -0.03, -0.002); // black studs
-        put(sph(0.0135, 10, 8), white, head, s * 0.034, 0.012, -0.086); put(sph(0.0085, 10, 8), iris, head, s * 0.034, 0.012, -0.0955); // blue-grey eyes
-        const b = put(new THREE.BoxGeometry(0.034, 0.006, 0.01), brow, head, s * 0.035, 0.036, -0.096); b.rotation.z = s * -0.12;
-      });
-      put(new THREE.ConeGeometry(0.016, 0.042, 7).rotateX(-Math.PI / 2), skin, head, 0, -0.012, -0.108); put(sph(0.011, 8, 6), skin, head, 0, -0.026, -0.112);
-      const ring = put(new THREE.TorusGeometry(0.0055, 0.0013, 5, 12), silver, head, -0.011, -0.03, -0.112); ring.rotation.y = Math.PI / 2; // nose ring, left nostril
-      put(new THREE.BoxGeometry(0.034, 0.009, 0.01), lips, head, 0, -0.054, -0.094);
-      // the hair: a curly mop, brown at the roots going blonde at the ends, curls hanging over the forehead
-      const cap = put(new THREE.SphereGeometry(0.117, 16, 12, 0, Math.PI * 2, 0, 1.62), hairBase, head, 0, 0.014, 0.012); cap.rotation.x = 0.36; cap.scale.set(0.96, 1, 1.04);
-      const C0 = new THREE.Vector3(0, 0.014, 0.008), RX = 0.113, RY = 0.13, RZ = 0.121, Z = new THREE.Vector3(0, 0, 1);
-      const dark = [0x3a2414, 0x47301c, 0x553520], mid = [0x6a4428, 0x7a5030, 0x8a5c36], blonde = [0xb3874c, 0xc49a5c, 0xd2ac6e];
-      const curlM = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.72 }); curlM.userData.noPBR = true; curlM.userData.lin = true;
-      const spots = [];
-      const phiMax = (th) => { const c = Math.cos(th); return 1.72 - 0.4 * Math.max(0, c) * Math.max(0, c) + 0.42 * Math.max(0, -c); };
-      for (let i = 0; i < 230; i++) { const th = rr() * Math.PI * 2, pm = phiMax(th), ph = Math.acos(1 - rr() * (1 - Math.cos(pm))); spots.push([th, ph, ph / pm, 1]); }
-      for (let i = 0; i < 26; i++) { const th = (rr() - 0.5) * 1.5, ph = 1.04 + rr() * 0.26; spots.push([th, ph, 0.8, 1.05]); } // the fringe, down to the brows
-      for (let i = 0; i < 18; i++) { const th = (rr() < 0.5 ? -1 : 1) * (1.2 + rr() * 0.9), ph = 1.55 + rr() * 0.28; spots.push([th, ph, 1, 1.02]); } // over the ears
-      const curls = new THREE.InstancedMesh(new THREE.TorusGeometry(0.0165, 0.0088, 6, 10), curlM, spots.length), dm = new THREE.Object3D(), col = new THREE.Color();
-      spots.forEach(([th, ph, t, push], i) => {
-        const d = new THREE.Vector3(Math.sin(ph) * Math.sin(th), Math.cos(ph), -Math.sin(ph) * Math.cos(th)), k = (0.98 + rr() * 0.12) * push;
-        dm.position.set(C0.x + d.x * RX * k, C0.y + d.y * RY * k, C0.z + d.z * RZ * k);
-        dm.quaternion.setFromUnitVectors(Z, d); dm.rotateZ(rr() * 6.28); dm.rotateX((rr() - 0.5) * 1.4);
-        const sc = 0.85 + rr() * 0.5; dm.scale.set(sc, sc, sc); dm.updateMatrix(); curls.setMatrixAt(i, dm.matrix);
-        const pal = rr() < 0.04 + 0.4 * t * t * t ? blonde : rr() < 0.5 ? mid : dark; // brown, going blonde at the ends
-        col.setHex(pal[Math.floor(rr() * 3)]).convertSRGBToLinear(); curls.setColorAt(i, col);
-      });
-      curls.frustumCulled = false; head.add(curls);
-      // the little braid by the left ear, blonde at the tip, black tie
-      for (let k = 0; k < 10; k++) { col.setHex(k < 6 ? 0x8a6038 : 0xd2aa6a); const bm = m(col.getHex(), 0.75); put(sph(0.0105 - k * 0.0003, 7, 5), bm, head, -0.088 + (k % 2 ? 0.006 : -0.006) - k * 0.002, -0.035 - k * 0.019, 0.012 - k * 0.004); }
-      put(new THREE.TorusGeometry(0.0085, 0.003, 5, 10).rotateX(Math.PI / 2), tie, head, -0.104, -0.205, -0.024);
-      put(new THREE.ConeGeometry(0.009, 0.03, 6).rotateX(Math.PI), m(0xd8b272, 0.75), head, -0.105, -0.225, -0.026);
-      // arms: from the elbow down these match the first-person hands (sleeves shoved up, bracelets, rings)
-      const arm = (x, right) => {
-        const j = new THREE.Group(); j.position.set(x, 0.55, 0); torso.add(j);
-        put(cyl(0.062, 0.054, 0.38), hood, j, 0, -0.19, 0);
-        [0.37, 0.4].forEach((y, i) => put(new THREE.TorusGeometry(0.052 - i * 0.004, 0.02, 7, 14).rotateX(Math.PI / 2), hood, j, 0, -y, 0));
-        put(cyl(0.041, 0.034, 0.22), skin, j, 0, -0.52, 0);
-        if (right) { for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; put(sph(0.011, 6, 5), k === 0 ? silver : tiger, j, Math.cos(a) * 0.04, -0.6, Math.sin(a) * 0.036); } }
-        else put(new THREE.TorusGeometry(0.038, 0.006, 6, 18).rotateX(Math.PI / 2), sapph, j, 0, -0.6, 0);
-        const hand = put(new THREE.BoxGeometry(0.075, 0.1, 0.035), skin, j, 0, -0.69, -0.005); hand.rotation.x = 0.08;
-        put(new THREE.BoxGeometry(0.022, 0.055, 0.025), skin, j, (right ? -1 : 1) * 0.045, -0.665, -0.018);
-        (right ? [-0.022, 0, 0.022] : [-0.022]).forEach((dx) => put(new THREE.BoxGeometry(0.019, 0.012, 0.04), silver, j, dx * (right ? 1 : -1), -0.73, -0.005));
-        return j;
-      };
-      const armL = arm(-0.25, false), armR = arm(0.25, true);
-      g.traverse((o) => { if (o.isMesh) o.castShadow = true; }); TH.Linear.fix(g);
-      return (this.man = { g, hip, torso, head, legL, legR, armL, armR, phase: 0 });
     },
     play(done) {
       let fr = this.buf.slice(); this.buf = [];
