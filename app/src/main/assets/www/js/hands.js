@@ -232,12 +232,16 @@
       return [a * Math.sin(th), b * c, z, t, s * 1.4];
     }, null, [NS / 2, 0, [0, 1, 0]]);
   }
-  function fingerSeg(r0, r1, len) { // tapered, slightly oval, swelling at the joints, fleshy underneath
-    const g = new THREE.CylinderGeometry(r1, r0, len, 18, 8, true); g.rotateX(-Math.PI / 2); g.translate(0, 0, -len / 2);
-    const p = g.attributes.position;
+  function fingerSeg(r0, r1, len, spat) { // one finger bone: tapers smoothly, flatter across the back, fleshy pad underneath, soft bony knuckle
+    const g = new THREE.CylinderGeometry(1, 1, len, 24, 14, true); g.rotateX(-Math.PI / 2); g.translate(0, 0, -len / 2);
+    const p = g.attributes.position, sm = (v) => v * v * (3 - 2 * v);
     for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), t = -z / len;
-      const sw = 1 + 0.07 * (Math.exp(-((t / 0.14) ** 2)) + Math.exp(-(((1 - t) / 0.14) ** 2))), pad = y < 0 ? 1 + 0.1 * Math.sin(Math.PI * t) : 1;
-      p.setXYZ(i, x * sw, y * sw * 0.9 * pad, z); }
+      const r = r0 + (r1 - r0) * sm(t); // smooth taper, no step where the next bone starts
+      // the knuckle: a low, wide rise on the back at the joint, fading out along the bone (it was a hard ridge before)
+      const kn = Math.exp(-((t / 0.22) ** 2)) * (y > 0 ? 0.045 * y : 0.012), tipk = Math.exp(-(((1 - t) / 0.2) ** 2)) * 0.02;
+      const top = y > 0 ? 0.84 : 0.94 + 0.08 * Math.sin(Math.PI * t); // flatter across the back, rounder pad underneath
+      const wide = spat ? 1 + 0.13 * Math.sin(Math.PI * Math.min(1, t * 1.15)) : 1; // thumb tip: broad and flat like a real thumb
+      p.setXYZ(i, x * r * (1 + kn + tipk) * wide, y * r * (1 + kn + tipk) * top * (spat && y > 0 ? 0.92 : 1), z); }
     g.computeVertexNormals(); return g;
   }
   function nailGeo(rr, len) {
@@ -319,8 +323,8 @@
       defs.forEach(([x, lens, r, dz]) => fingers.push(this.finger(hand, x, -0.086 + dz, lens, r)));
       // thumb: angled out from the side of the palm, with the meaty web to the index finger
       const tb = new THREE.Group(); tb.position.set(-0.03, -0.006, -0.02); tb.rotation.set(-0.25, 0.62, -0.75); hand.add(tb);
-      add(tb, new THREE.SphereGeometry(1, 18, 12), this.skinM, 0.004, 0.002, -0.012).scale.set(0.0135, 0.012, 0.025);
-      const thumb = this.finger(tb, 0, -0.028, [0.034, 0.029], 0.0112, true);
+      add(tb, new THREE.SphereGeometry(1, 24, 16), this.skinM, 0.004, 0.002, -0.012).scale.set(0.0145, 0.0122, 0.027);
+      const thumb = this.finger(tb, 0, -0.02, [0.042, 0.029], 0.0112, true); // starts inside the thumb mound, so there's no collar where it meets the hand
       const grip = new THREE.Group(); grip.position.set(0.0, -0.03, -0.088); hand.add(grip); // where a held item sits
       if (side > 0) {
         this.triRing(this.ringOn(fingers[0], 0.34)); this.signet(this.ringOn(fingers[1], 0.32)); this.horseshoe(this.ringOn(fingers[2], 0.34));
@@ -339,12 +343,14 @@
         if (i > 0) { const j = new THREE.Group(); j.position.z = -lens[i - 1]; p.add(j); p = j; }
         joints.push(p);
         const kind = isThumb ? (i ? 2 : 0) : i;
-        p.add(new THREE.Mesh(fingerSeg(rr, rr * 0.9, len), this.fingerM[kind]));
-        const ball = new THREE.Mesh(new THREE.SphereGeometry(rr * 1.06, 16, 12), this.fingerM[kind]); ball.scale.y = 0.9; ball.rotation.x = Math.PI / 2; p.add(ball);
+        const last = i === lens.length - 1;
+        p.add(new THREE.Mesh(fingerSeg(isThumb && i === 0 ? rr * 1.3 : rr, rr * 0.9, len, isThumb && last), this.fingerM[kind])); // the thumb flares out of the hand at its base
+        // joint filler: sits just inside the bone so it never pokes out as a ridge, but fills the gap when the finger bends
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(rr, 20, 14), this.fingerM[kind]); ball.scale.set(0.99, 0.86, 1); ball.rotation.x = Math.PI / 2; if (!(isThumb && i === 0)) p.add(ball); // (no ball at the thumb's root: it sat on the hand as a ring)
         if (i === lens.length - 1) {
-          const re = rr * 0.9, tip = new THREE.Mesh(new THREE.SphereGeometry(re, 16, 12), this.fingerM[2]); tip.position.z = -len; tip.scale.set(1.02, 0.86, 1.3); p.add(tip);
+          const re = rr * 0.9, tip = new THREE.Mesh(new THREE.SphereGeometry(re, 20, 14), this.fingerM[2]); tip.position.z = -len; tip.scale.set(isThumb ? 1.04 : 1.02, isThumb ? 0.8 : 0.86, isThumb ? 1.15 : 1.3); p.add(tip);
           const n = nailGeo(re * (isThumb ? 1.08 : 1), len), nail = new THREE.Mesh(n.g, this.nailM);
-          nail.position.set(0, re * 0.93 + 0.0003, -len + n.l / 2 - re * 0.5); p.add(nail);
+          nail.position.set(0, re * (isThumb ? 0.8 : 0.86) + 0.0003, -len + n.l / 2 - re * 0.5); p.add(nail); // sits on the flatter back of the finger
         }
         rr *= 0.9;
       });
